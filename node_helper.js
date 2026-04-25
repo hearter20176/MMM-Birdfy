@@ -151,10 +151,11 @@ module.exports = NodeHelper.create({
         for (const raw of alerts) {
           const alert = normaliseAlert(raw, deviceName);
 
-          // Skip already-seen or too-old alerts
+          // Skip already-seen, too-old, or unidentified alerts
           if (this.seenAlertIds.has(alert.id)) continue;
           const age = Date.now() - alert.timestamp;
           if (age > this.config.maxAlertAge) continue;
+          if (!alert.species) continue; // only trigger when Birdfy identified a bird
 
           this.seenAlertIds.add(alert.id);
 
@@ -191,6 +192,7 @@ module.exports = NodeHelper.create({
       console.log("[MMM-Birdfy] Webhook received", req.body);
       try {
         const alert = normaliseAlert(req.body, req.body.deviceName);
+        if (!alert.species) return res.status(200).json({ ok: true, skipped: "no species identified" });
         this.sendSocketNotification("BIRDFY_ALERT", alert);
         res.status(200).json({ ok: true });
       } catch (err) {
