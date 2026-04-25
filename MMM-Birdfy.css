@@ -1,0 +1,93 @@
+/* ── MMM-Birdfy styles ──────────────────────────────────────────────────── */
+
+.birdfy-wrapper {
+  font-family: inherit;
+  min-width: 240px;
+}
+
+/* ── Idle state ─────────────────────────────────────────────────────────── */
+
+.birdfy-idle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 4px;
+  opacity: 0.6;
+  font-size: 0.9em;
+}
+
+.birdfy-icon {
+  font-size: 1.4em;
+  line-height: 1;
+}
+
+.birdfy-idle-text {
+  color: #aaa;
+}
+
+/* ── Active alert ───────────────────────────────────────────────────────── */
+
+.birdfy-alert {
+  position: relative;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #111;
+  box-shadow: 0 0 20px rgba(0, 180, 80, 0.35);
+  animation: birdfy-pulse-border 2s ease-in-out infinite;
+}
+
+@keyframes birdfy-pulse-border {
+  0%   { box-shadow: 0 0 16px rgba(0, 180, 80, 0.4); }
+  50%  { box-shadow: 0 0 28px rgba(0, 220, 100, 0.7); }
+  100% { box-shadow: 0 0 16px rgba(0, 180, 80, 0.4); }
+}
+
+/* ── Media (video / image) ──────────────────────────────────────────────── */
+
+.birdfy-media {
+  display: block;
+  width: 100%;
+  max-width: 480px;
+  height: auto;
+  border-radius: 8px 8px 0 0;
+  object-fit: cover;
+  background: #000;
+}
+
+video.birdfy-media {
+  max-height: 270px;
+}
+
+/* ── Info overlay ───────────────────────────────────────────────────────── */
+
+.birdfy-info {
+  padding: 8px 12px 10px;
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.85));
+}
+
+.birdfy-species {
+  font-size: 1.15em;
+  font-weight: 600;
+  color: #fff;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.birdfy-meta {
+  font-size: 0.78em;
+  color: #aaa;
+  margin-top: 3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── No-media state (info only) ─────────────────────────────────────────── */
+
+.birdfy-alert .birdfy-info:first-child {
+  background: rgba(0, 0, 0, 0.6);
+  border-radius: 8px;
+  padding: 12px 16px;
+}

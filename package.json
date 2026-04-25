@@ -1,0 +1,16 @@
+{
+  "name": "MMM-Birdfy",
+  "version": "1.0.0",
+  "description": "MagicMirror² module that displays bird detection alerts from Birdfy smart feeders, showing video clips or live view.",
+  "main": "MMM-Birdfy.js",
+  "scripts": {
+    "install": "echo \"MMM-Birdfy installed. Run 'npm install' from this directory to install dependencies.\""
+  },
+  "keywords": ["MagicMirror", "Birdfy", "Netvue", "birds", "camera"],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.7.0",
+    "express": "^4.19.0"
+  }
+}
