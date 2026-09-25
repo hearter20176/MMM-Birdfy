@@ -64,7 +64,10 @@ Add to the `modules` array in `config/config.js`:
 
 ### Mode A — Birdfy Highlights Polling
 
-Add one entry to `sources` per Birdfy feeder, each with the share UUID from the Birdfy app (the same UUID the Home Assistant Birdfy integration uses). No account login is needed. The node helper polls `https://api2.nvts.co/moments/h5CuratedData` for today's highlights every `pollInterval` milliseconds and shows each newly identified bird visit newer than `maxAlertAge`, with its clip (`fileUrl`) and species thumbnail.
+Add one entry to `sources` per Birdfy feeder, each with the share UUID from the Birdfy app (the same UUID the Home Assistant Birdfy integration uses). No account login is needed. The node helper polls `https://api2.nvts.co/moments/h5CuratedData` for today's data every `pollInterval` milliseconds and shows two kinds of events:
+
+- **Species sightings** — the first time an identified species appears in today's `birdList`, with Birdfy's cover photo for that species. This is the frequent signal; Birdfy's share feed does not expose exact sighting times or repeat visits, so each species is announced once per day.
+- **Curated clips** — highlights Birdfy selects (typically a few per week), with the video clip, shown if newer than `maxAlertAge`.
 
 #### Getting (or renewing) a share UUID
 

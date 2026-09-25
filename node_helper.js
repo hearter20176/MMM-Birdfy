@@ -6,7 +6,11 @@
  *  1. HIGHLIGHTS MODE – polls the Birdfy (Netvue) highlights feed for each
  *     configured source. Each source is identified by the share UUID from the
  *     Birdfy app, the same one the Home Assistant Birdfy integration uses.
- *     No account login is needed.
+ *     No account login is needed. Two kinds of events are surfaced:
+ *       - species sightings: the first time an identified species appears in
+ *         today's birdList (frequent; cover photo, no exact time or clip)
+ *       - curated clips: dataList items Birdfy selects as highlights (a few
+ *         per week; include the video clip and detection time)
  *
  *  2. WEBHOOK MODE    – starts a local Express server so that external services
  *     (IFTTT, Home Assistant, etc.) can POST bird-detection payloads directly.
@@ -141,6 +145,9 @@ module.exports = NodeHelper.create({
       lastErrorLog: 0,
       lastValidityCheck: 0,
       invalid:      false,
+      speciesDay:   null,       // local date the species set belongs to
+      speciesSeen:  new Set(),  // identified species already announced today
+      speciesPrimed: false,     // first poll after startup only records species
     }));
     console.log(`[MMM-Birdfy] Polling ${this.sources.length} Birdfy source(s) every ${this.config.pollInterval / 1000}s`);
     this._pollAll();
@@ -172,7 +179,9 @@ module.exports = NodeHelper.create({
       if (bird && bird.name && bird.coverKey) thumbnails[bird.name] = bird.coverKey;
     }
 
-    if (items.length) {
+    this._announceNewSpecies(src, data.birdList || []);
+
+    if (items.length || (data.birdList || []).length) {
       this._setInvalid(src, false);
     } else if (Date.now() - src.lastValidityCheck > VALIDITY_CHECK_MS) {
       src.lastValidityCheck = Date.now();
@@ -200,6 +209,34 @@ module.exports = NodeHelper.create({
 
     // Seen ids only matter for today's feed; drop them when the day rolls over.
     if (src.seen.size > 500) src.seen = new Set(items.map((i) => toAlert(i, thumbnails, src.api.name).id));
+  },
+
+  // Alert the first time each identified species shows up in today's birdList.
+  // "bird" is Birdfy's label for an unidentified bird and is skipped, as with clips.
+  _announceNewSpecies(src, birdList) {
+    const d = new Date();
+    const today = `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+    if (src.speciesDay !== today) {
+      src.speciesDay = today;
+      src.speciesSeen = new Set();
+    }
+    for (const bird of birdList) {
+      const name = bird && bird.name;
+      if (!name || name.toLowerCase() === "bird" || src.speciesSeen.has(name)) continue;
+      src.speciesSeen.add(name);
+      if (!src.speciesPrimed) continue;
+      this.sendSocketNotification("BIRDFY_ALERT", {
+        id:         `species-${today}-${name}`,
+        species:    name,
+        deviceName: src.api.name,
+        timestamp:  Date.now(),
+        videoUrl:   null,
+        imageUrl:   bird.coverKey || null,
+        streamUrl:  null,
+        isNewSpecies: false,
+      });
+    }
+    src.speciesPrimed = true;
   },
 
   // Track sources whose share UUID Birdfy no longer recognises and tell the frontend.
