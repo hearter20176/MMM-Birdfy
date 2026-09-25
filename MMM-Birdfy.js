@@ -35,6 +35,7 @@ Module.register("MMM-Birdfy", {
     this.alert = null;       // current bird alert being displayed
     this.hideTimer = null;
     this.loaded = false;
+    this.invalidSources = [];  // sources whose Birdfy share link has expired
     this.sendSocketNotification("BIRDFY_CONFIG", this.config);
   },
 
@@ -69,6 +70,10 @@ Module.register("MMM-Birdfy", {
           <span class="birdfy-icon">🪺</span>
           <span class="birdfy-idle-text">No recent visitors</span>
         </div>`;
+        if (this.invalidSources.length) {
+          wrapper.querySelector(".birdfy-idle-text").textContent =
+            `Birdfy link expired: ${this.invalidSources.join(", ")}`;
+        }
       }
       return wrapper;
     }
@@ -163,6 +168,11 @@ Module.register("MMM-Birdfy", {
 
       case "BIRDFY_ERROR":
         Log.error(`[MMM-Birdfy] ${payload.message}`);
+        break;
+
+      case "BIRDFY_STATUS":
+        this.invalidSources = payload.invalidSources || [];
+        if (!this.alert) this.updateDom(this.config.animationSpeed);
         break;
     }
   },

@@ -66,7 +66,18 @@ Add to the `modules` array in `config/config.js`:
 
 Add one entry to `sources` per Birdfy feeder, each with the share UUID from the Birdfy app (the same UUID the Home Assistant Birdfy integration uses). No account login is needed. The node helper polls `https://api2.nvts.co/moments/h5CuratedData` for today's highlights every `pollInterval` milliseconds and shows each newly identified bird visit newer than `maxAlertAge`, with its clip (`fileUrl`) and species thumbnail.
 
-> **Note:** an unknown UUID returns an empty feed rather than an error. If a source returns nothing for 24 hours, the module logs a warning to check the UUID.
+#### Getting (or renewing) a share UUID
+
+1. Open the Birdfy app and tap your profile image (top right).
+2. Select **Highlights**. A browser page opens.
+3. Copy that page's URL; the UUID is the value after `uuid=`
+   (`https://highlight.birdfy.com/?uuid=YOUR_UUID_HERE`).
+
+Birdfy can invalidate these links (for example after an app update). An invalid UUID
+returns an empty feed rather than an error, so when a source has no highlights today the
+module also checks Birdfy's highlight summary for the last ~2 months (at most every 6 hours).
+If that is empty too, it logs a warning and the idle view shows
+`Birdfy link expired: <source name>` until the source returns data again.
 
 ### Mode B — Webhook
 

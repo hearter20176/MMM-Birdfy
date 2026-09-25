@@ -25,9 +25,10 @@ const axios      = require("axios");
 const express    = require("express");
 
 const HIGHLIGHTS_URL   = "https://api2.nvts.co/moments/h5CuratedData";
+const SUMMARY_URL      = "https://api2.nvts.co/moments/h5CuratedSummary";
 const ERROR_SUMMARY_MS = 15 * 60 * 1000;
-// Warn if a source has returned nothing for this long (likely a wrong UUID).
-const EMPTY_WARN_MS    = 24 * 60 * 60 * 1000;
+// How often to re-check whether an empty source's UUID is still recognised.
+const VALIDITY_CHECK_MS = 6 * 60 * 60 * 1000;
 
 // ── Birdfy highlights client ──────────────────────────────────────────────────
 
@@ -50,6 +51,16 @@ class BirdfyHighlights {
     if (!data || typeof data !== "object") throw new Error("Unexpected response from Birdfy API");
     if (data.message) throw new Error(data.message);
     return data;
+  }
+
+  // Number of days with highlights since the start of the month ~2 months ago,
+  // the same window the highlights web page asks for. 0 means Birdfy no longer
+  // recognises this UUID (expired or revoked share link).
+  async getRecentDayCount() {
+    const d = new Date(Date.now() - 59 * 24 * 60 * 60 * 1000);
+    const date = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
+    const res = await this.http.get(SUMMARY_URL, { params: { uuid: this.uuid, date } });
+    return Array.isArray(res.data?.dataList) ? res.data.dataList.length : 0;
   }
 }
 
@@ -128,8 +139,8 @@ module.exports = NodeHelper.create({
       seen:         new Set(),
       errorCount:   0,
       lastErrorLog: 0,
-      lastData:     Date.now(),
-      warnedEmpty:  false,
+      lastValidityCheck: 0,
+      invalid:      false,
     }));
     console.log(`[MMM-Birdfy] Polling ${this.sources.length} Birdfy source(s) every ${this.config.pollInterval / 1000}s`);
     this._pollAll();
@@ -162,11 +173,14 @@ module.exports = NodeHelper.create({
     }
 
     if (items.length) {
-      src.lastData = Date.now();
-      src.warnedEmpty = false;
-    } else if (!src.warnedEmpty && Date.now() - src.lastData > EMPTY_WARN_MS) {
-      console.warn(`[MMM-Birdfy] ${src.api.name}: no highlights for 24h; check the source uuid`);
-      src.warnedEmpty = true;
+      this._setInvalid(src, false);
+    } else if (Date.now() - src.lastValidityCheck > VALIDITY_CHECK_MS) {
+      src.lastValidityCheck = Date.now();
+      try {
+        this._setInvalid(src, (await src.api.getRecentDayCount()) === 0);
+      } catch (err) {
+        this._logSourceError(src, err);
+      }
     }
 
     const now = Date.now();
@@ -186,6 +200,21 @@ module.exports = NodeHelper.create({
 
     // Seen ids only matter for today's feed; drop them when the day rolls over.
     if (src.seen.size > 500) src.seen = new Set(items.map((i) => toAlert(i, thumbnails, src.api.name).id));
+  },
+
+  // Track sources whose share UUID Birdfy no longer recognises and tell the frontend.
+  _setInvalid(src, invalid) {
+    if (src.invalid === invalid) return;
+    src.invalid = invalid;
+    if (invalid) {
+      console.warn(`[MMM-Birdfy] ${src.api.name}: Birdfy has no highlights for this share UUID in ~2 months; ` +
+        "the link has likely expired. Get a new one in the Birdfy app (profile > Highlights, copy the uuid= value).");
+    } else {
+      console.log(`[MMM-Birdfy] ${src.api.name}: highlights available again`);
+    }
+    this.sendSocketNotification("BIRDFY_STATUS", {
+      invalidSources: this.sources.filter((s) => s.invalid).map((s) => s.api.name),
+    });
   },
 
   // Log the first failure of an outage, then a summary at most every 15 minutes.
