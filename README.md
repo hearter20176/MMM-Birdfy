@@ -35,12 +35,13 @@ Add to the `modules` array in `config/config.js`:
   module: "MMM-Birdfy",
   position: "top_right",   // any MagicMirror region
   config: {
-    // ── Mode A: Birdfy cloud polling ──────────────────────────────
-    apiEmail:    "your@email.com",
-    apiPassword: "yourPassword",
-    pollInterval:  30000,     // check every 30 s
-    maxAlertAge:  300000,     // ignore events older than 5 min
-    deviceIds: [],            // [] = all devices; or ["device-id-1"]
+    // ── Mode A: Birdfy highlights polling ─────────────────────────
+    sources: [
+      { name: "Bird Feeder", uuid: "your-share-uuid" },
+      { name: "Bird House",  uuid: "another-share-uuid" },
+    ],
+    pollInterval: 120000,     // check every 2 min
+    maxAlertAge: 1800000,     // ignore visits older than 30 min
 
     // ── Mode B: Webhook (IFTTT / Home Assistant / etc.) ───────────
     webhookEnabled: false,    // set true to enable
@@ -61,14 +62,11 @@ Add to the `modules` array in `config/config.js`:
 
 ## Integration Modes
 
-### Mode A — Birdfy Cloud Polling
+### Mode A — Birdfy Highlights Polling
 
-Set `apiEmail` and `apiPassword`. The node helper will authenticate with the Birdfy cloud, then poll `/v1/device/alert/list` every `pollInterval` milliseconds and surface any alerts newer than `maxAlertAge`.
+Add one entry to `sources` per Birdfy feeder, each with the share UUID from the Birdfy app (the same UUID the Home Assistant Birdfy integration uses). No account login is needed. The node helper polls `https://api2.nvts.co/moments/h5CuratedData` for today's highlights every `pollInterval` milliseconds and shows each newly identified bird visit newer than `maxAlertAge`, with its clip (`fileUrl`) and species thumbnail.
 
-> **⚠️ Note on API endpoints**
->
-> Birdfy / Netvue does not publish an official developer API. The endpoint paths in `node_helper.js` were inferred from the `my.birdfy.com` web client.
-> If polling fails, open `my.birdfy.com` in **Chrome DevTools → Network** while browsing your bird events. Copy the real XHR/Fetch request URLs and update the constants in the `BirdfyAPI` class inside `node_helper.js`.
+> **Note:** an unknown UUID returns an empty feed rather than an error. If a source returns nothing for 24 hours, the module logs a warning to check the UUID.
 
 ### Mode B — Webhook
 
@@ -139,11 +137,9 @@ MM.sendNotification("BIRDFY_DEMO", {
 
 | Key | Default | Description |
 |---|---|---|
-| `apiEmail` | `""` | Birdfy account email (polling mode) |
-| `apiPassword` | `""` | Birdfy account password (polling mode) |
-| `pollInterval` | `30000` | Polling frequency in ms |
-| `maxAlertAge` | `300000` | Max alert age to surface (ms) |
-| `deviceIds` | `[]` | Filter to specific device IDs (empty = all) |
+| `sources` | `[]` | Highlight feeds to poll: `[{ name, uuid }]` (polling mode) |
+| `pollInterval` | `120000` | Polling frequency in ms |
+| `maxAlertAge` | `1800000` | Max age of a visit to surface (ms) |
 | `webhookEnabled` | `false` | Enable webhook server |
 | `webhookPort` | `8765` | Webhook server port |
 | `webhookPath` | `"/birdfy"` | Webhook URL path |

@@ -1,15 +1,12 @@
 Module.register("MMM-Birdfy", {
   defaults: {
-    // --- Birdfy Cloud API (direct polling mode) ---
-    // Credentials for your Birdfy / Netvue account
-    apiEmail: "",
-    apiPassword: "",
+    // --- Birdfy highlights (polling mode) ---
+    // Feeds to poll: [{ name: "Bird Feeder", uuid: "<share uuid>" }]
+    sources: [],
     // How often to poll for new bird sightings (ms)
-    pollInterval: 30 * 1000,
+    pollInterval: 2 * 60 * 1000,
     // Only surface alerts newer than this age (ms)
-    maxAlertAge: 5 * 60 * 1000,
-    // Restrict to specific device IDs (empty array = all devices)
-    deviceIds: [],
+    maxAlertAge: 30 * 60 * 1000,  // highlights can appear minutes after the visit
 
     // --- Webhook mode (alternative to polling) ---
     // Enable a local HTTP server to receive push notifications

@@ -1,22 +1,21 @@
 /**
  * node_helper.js — MMM-Birdfy
  *
- * Handles two modes of receiving bird-detection events from Birdfy:
+ * Handles two ways of receiving bird-detection events from Birdfy:
  *
- *  1. POLLING MODE  – authenticates with the Birdfy cloud API and polls for
- *     new detection events on a configurable interval.
+ *  1. HIGHLIGHTS MODE – polls the Birdfy (Netvue) highlights feed for each
+ *     configured source. Each source is identified by the share UUID from the
+ *     Birdfy app, the same one the Home Assistant Birdfy integration uses.
+ *     No account login is needed.
  *
- *  2. WEBHOOK MODE  – starts a local Express server so that external services
+ *  2. WEBHOOK MODE    – starts a local Express server so that external services
  *     (IFTTT, Home Assistant, etc.) can POST bird-detection payloads directly.
  *
- * ── IMPORTANT: Birdfy API ────────────────────────────────────────────────────
- * Birdfy / Netvue does not publish an official public API. The endpoint paths
- * below were inferred from the web client (my.birdfy.com) and community
- * research, and MAY need adjustment. To discover the real endpoints:
- *   1. Open my.birdfy.com in Chrome DevTools → Network tab.
- *   2. Log in and browse your bird events.
- *   3. Note the XHR/Fetch requests and update the constants in BirdfyAPI below.
- * ─────────────────────────────────────────────────────────────────────────────
+ * Endpoint: GET https://api2.nvts.co/moments/h5CuratedData
+ *           ?uuid=<share uuid>&startTime=<ms>&endTime=<ms>
+ * Response: { birdList: [{ name, coverKey }], dataList: [{ detectObject,
+ *             title, category, createTime, fileUrl }], message? }
+ * An unknown UUID returns HTTP 200 with an empty dataList, not an error.
  */
 
 "use strict";
@@ -25,48 +24,52 @@ const NodeHelper = require("node_helper");
 const axios      = require("axios");
 const express    = require("express");
 
-// ── Birdfy Cloud API wrapper ──────────────────────────────────────────────────
+const HIGHLIGHTS_URL   = "https://api2.nvts.co/moments/h5CuratedData";
+const ERROR_SUMMARY_MS = 15 * 60 * 1000;
+// Warn if a source has returned nothing for this long (likely a wrong UUID).
+const EMPTY_WARN_MS    = 24 * 60 * 60 * 1000;
 
-class BirdfyAPI {
-  constructor(baseUrl) {
-    // Update this if you discover the real base URL via DevTools
-    this.baseUrl = baseUrl || "https://app-api.birdfy.com";
-    this.token   = null;
-    this.http    = axios.create({ baseURL: this.baseUrl, timeout: 15000 });
+// ── Birdfy highlights client ──────────────────────────────────────────────────
+
+class BirdfyHighlights {
+  constructor(source) {
+    this.name = source.name || "Birdfy";
+    this.uuid = source.uuid;
+    this.http = axios.create({ timeout: 30000 });
   }
 
-  async login(email, password) {
-    // Endpoint and body shape to be confirmed via DevTools inspection.
-    const res = await this.http.post("/v1/user/login", {
-      account:  email,
-      password: password,
+  // Today's highlights (local midnight → end of day), as the HA integration does.
+  async getToday() {
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(start.getTime() + 24 * 60 * 60 * 1000 - 1);
+    const res = await this.http.get(HIGHLIGHTS_URL, {
+      params: { uuid: this.uuid, startTime: String(start.getTime()), endTime: String(end.getTime()) },
     });
-    // Adjust the path below to wherever the token lives in the response
-    this.token = res.data?.data?.token || res.data?.token;
-    if (!this.token) throw new Error("Login succeeded but no token found in response");
-    this.http.defaults.headers.common["Authorization"] = `Bearer ${this.token}`;
-    return this.token;
-  }
-
-  async getDevices() {
-    const res = await this.http.get("/v1/device/list");
-    return res.data?.data?.list || res.data?.data || [];
-  }
-
-  async getRecentAlerts(deviceId, pageSize = 20) {
-    const params = { page: 1, pageSize };
-    if (deviceId) params.deviceId = deviceId;
-    const res = await this.http.get("/v1/device/alert/list", { params });
-    return res.data?.data?.list || res.data?.data || [];
-  }
-
-  async getLiveStreamUrl(deviceId) {
-    const res = await this.http.get(`/v1/device/stream/${deviceId}`);
-    return res.data?.data?.url || res.data?.url || null;
+    const data = res.data;
+    if (!data || typeof data !== "object") throw new Error("Unexpected response from Birdfy API");
+    if (data.message) throw new Error(data.message);
+    return data;
   }
 }
 
-// ── Normalise a raw API alert into a consistent shape ─────────────────────────
+// ── Convert a highlight item into the alert shape the frontend renders ────────
+
+function toAlert(item, thumbnails, sourceName) {
+  const species = item.detectObject || null;
+  return {
+    id:         `${item.createTime}-${item.fileUrl || species || ""}`,
+    species,
+    deviceName: sourceName,
+    timestamp:  Number(item.createTime) || Date.now(),
+    videoUrl:   item.fileUrl || null,
+    imageUrl:   (species && thumbnails[species]) || null,
+    streamUrl:  null,
+    isNewSpecies: item.category === "newBird",
+  };
+}
+
+// ── Normalise a webhook payload into the same shape ───────────────────────────
 
 function normaliseAlert(raw, deviceName) {
   return {
@@ -88,11 +91,10 @@ function normaliseAlert(raw, deviceName) {
 module.exports = NodeHelper.create({
   start() {
     console.log("[MMM-Birdfy] node_helper started");
-    this.config       = null;
-    this.api          = null;
-    this.pollTimer    = null;
-    this.seenAlertIds = new Set();
-    this.webhookApp   = null;
+    this.config        = null;
+    this.pollTimer     = null;
+    this.sources       = [];
+    this.webhookApp    = null;
     this.webhookServer = null;
   },
 
@@ -102,81 +104,98 @@ module.exports = NodeHelper.create({
     if (notification !== "BIRDFY_CONFIG") return;
 
     this.config = payload;
-    this.api    = new BirdfyAPI(payload.apiBaseUrl);
 
-    if (payload.webhookEnabled) {
+    if (payload.webhookEnabled && !this.webhookServer) {
       this._startWebhookServer();
     }
 
-    if (payload.apiEmail && payload.apiPassword) {
-      this._startPolling();
+    const sources = (payload.sources || []).filter((s) => s && s.uuid);
+    if (sources.length) {
+      this._startPolling(sources);
     } else if (!payload.webhookEnabled) {
-      console.warn("[MMM-Birdfy] No credentials and webhook disabled. Module is idle.");
+      console.warn("[MMM-Birdfy] No sources configured and webhook disabled. Module is idle.");
     }
 
     this.sendSocketNotification("BIRDFY_READY", {});
   },
 
-  // ── Polling ────────────────────────────────────────────────────────────────
+  // ── Highlights polling ─────────────────────────────────────────────────────
 
-  async _startPolling() {
-    try {
-      await this.api.login(this.config.apiEmail, this.config.apiPassword);
-      console.log("[MMM-Birdfy] Authenticated with Birdfy API");
-    } catch (err) {
-      this._sendError(`Authentication failed: ${err.message}`);
-      // Retry after one interval
-      this.pollTimer = setTimeout(() => this._startPolling(), this.config.pollInterval);
-      return;
-    }
-
-    await this._poll();
-    this.pollTimer = setInterval(() => this._poll(), this.config.pollInterval);
+  _startPolling(sources) {
+    if (this.pollTimer) clearInterval(this.pollTimer);
+    this.sources = sources.map((s) => ({
+      api:          new BirdfyHighlights(s),
+      seen:         new Set(),
+      errorCount:   0,
+      lastErrorLog: 0,
+      lastData:     Date.now(),
+      warnedEmpty:  false,
+    }));
+    console.log(`[MMM-Birdfy] Polling ${this.sources.length} Birdfy source(s) every ${this.config.pollInterval / 1000}s`);
+    this._pollAll();
+    this.pollTimer = setInterval(() => this._pollAll(), this.config.pollInterval);
   },
 
-  async _poll() {
+  async _pollAll() {
+    for (const src of this.sources) {
+      await this._pollSource(src);
+    }
+  },
+
+  async _pollSource(src) {
+    let data;
     try {
-      const devicesFilter = new Set(this.config.deviceIds);
-      let devices = await this.api.getDevices();
-
-      if (devicesFilter.size > 0) {
-        devices = devices.filter(d => devicesFilter.has(d.id || d.deviceId));
-      }
-
-      for (const device of devices) {
-        const deviceId   = device.id || device.deviceId;
-        const deviceName = device.name || device.deviceName || deviceId;
-        const alerts     = await this.api.getRecentAlerts(deviceId);
-
-        for (const raw of alerts) {
-          const alert = normaliseAlert(raw, deviceName);
-
-          // Skip already-seen, too-old, or unidentified alerts
-          if (this.seenAlertIds.has(alert.id)) continue;
-          const age = Date.now() - alert.timestamp;
-          if (age > this.config.maxAlertAge) continue;
-          if (!alert.species) continue; // only trigger when Birdfy identified a bird
-
-          this.seenAlertIds.add(alert.id);
-
-          // Optionally fetch live stream URL
-          if (this.config.showLiveView) {
-            try {
-              alert.streamUrl = await this.api.getLiveStreamUrl(deviceId);
-            } catch (_) { /* stream URL is optional */ }
-          }
-
-          this.sendSocketNotification("BIRDFY_ALERT", alert);
-        }
-      }
+      data = await src.api.getToday();
     } catch (err) {
-      this._sendError(`Poll failed: ${err.message}`);
+      this._logSourceError(src, err);
+      return;
+    }
+    if (src.errorCount > 0) {
+      console.log(`[MMM-Birdfy] ${src.api.name}: recovered after ${src.errorCount} failed poll(s)`);
+      src.errorCount = 0;
+    }
 
-      // Re-auth on token expiry (HTTP 401)
-      if (err.response?.status === 401) {
-        clearInterval(this.pollTimer);
-        this._startPolling();
-      }
+    const items = Array.isArray(data.dataList) ? data.dataList : [];
+    const thumbnails = {};
+    for (const bird of data.birdList || []) {
+      if (bird && bird.name && bird.coverKey) thumbnails[bird.name] = bird.coverKey;
+    }
+
+    if (items.length) {
+      src.lastData = Date.now();
+      src.warnedEmpty = false;
+    } else if (!src.warnedEmpty && Date.now() - src.lastData > EMPTY_WARN_MS) {
+      console.warn(`[MMM-Birdfy] ${src.api.name}: no highlights for 24h; check the source uuid`);
+      src.warnedEmpty = true;
+    }
+
+    const now = Date.now();
+    const fresh = items
+      .map((item) => toAlert(item, thumbnails, src.api.name))
+      .filter((a) => !src.seen.has(a.id))
+      .sort((a, b) => a.timestamp - b.timestamp);
+
+    for (const alert of fresh) {
+      src.seen.add(alert.id);
+      // Only alert on identified birds recent enough to be interesting. On the
+      // first poll this still surfaces a visit from the last maxAlertAge window.
+      if (!alert.species) continue;
+      if (now - alert.timestamp > this.config.maxAlertAge) continue;
+      this.sendSocketNotification("BIRDFY_ALERT", alert);
+    }
+
+    // Seen ids only matter for today's feed; drop them when the day rolls over.
+    if (src.seen.size > 500) src.seen = new Set(items.map((i) => toAlert(i, thumbnails, src.api.name).id));
+  },
+
+  // Log the first failure of an outage, then a summary at most every 15 minutes.
+  _logSourceError(src, err) {
+    src.errorCount += 1;
+    const now = Date.now();
+    if (src.errorCount === 1 || now - src.lastErrorLog >= ERROR_SUMMARY_MS) {
+      const suffix = src.errorCount > 1 ? ` (${src.errorCount} failed polls so far)` : "";
+      this._sendError(`${src.api.name}: ${err.message}${suffix}`);
+      src.lastErrorLog = now;
     }
   },
 
