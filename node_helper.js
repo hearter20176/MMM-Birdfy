@@ -148,6 +148,7 @@ module.exports = NodeHelper.create({
       speciesDay:   null,       // local date the species set belongs to
       speciesSeen:  new Set(),  // identified species already announced today
       speciesPrimed: false,     // first poll after startup only records species
+      visitors:     [],         // identified species seen today, for the idle view
     }));
     console.log(`[MMM-Birdfy] Polling ${this.sources.length} Birdfy source(s) every ${this.config.pollInterval / 1000}s`);
     this._pollAll();
@@ -180,6 +181,10 @@ module.exports = NodeHelper.create({
     }
 
     this._announceNewSpecies(src, data.birdList || []);
+    src.visitors = (data.birdList || [])
+      .filter((b) => b && b.name && b.name.toLowerCase() !== "bird")
+      .map((b) => ({ name: b.name, imageUrl: b.coverKey || null }));
+    this._sendToday();
 
     if (items.length || (data.birdList || []).length) {
       this._setInvalid(src, false);
@@ -209,6 +214,21 @@ module.exports = NodeHelper.create({
 
     // Seen ids only matter for today's feed; drop them when the day rolls over.
     if (src.seen.size > 500) src.seen = new Set(items.map((i) => toAlert(i, thumbnails, src.api.name).id));
+  },
+
+  // Send the identified species seen today (all sources, de-duplicated) so the
+  // frontend can show them between alerts, like HA's species list / last bird.
+  _sendToday() {
+    const seen = new Set();
+    const visitors = [];
+    for (const src of this.sources) {
+      for (const v of src.visitors || []) {
+        if (seen.has(v.name)) continue;
+        seen.add(v.name);
+        visitors.push({ ...v, source: src.api.name });
+      }
+    }
+    this.sendSocketNotification("BIRDFY_TODAY", { visitors });
   },
 
   // Alert the first time each identified species shows up in today's birdList.

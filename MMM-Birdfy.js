@@ -26,6 +26,8 @@ Module.register("MMM-Birdfy", {
     animationSpeed: 1000,
     // Show module in idle state (false = hide until bird detected)
     showWhenIdle: true,
+    // Max species shown in the "Today's visitors" idle view
+    maxVisitors: 8,
   },
 
   // ─── Lifecycle ───────────────────────────────────────────────────────────
@@ -36,6 +38,7 @@ Module.register("MMM-Birdfy", {
     this.hideTimer = null;
     this.loaded = false;
     this.invalidSources = [];  // sources whose Birdfy share link has expired
+    this.todayVisitors = [];   // identified species seen today (from node_helper)
     this.sendSocketNotification("BIRDFY_CONFIG", this.config);
   },
 
@@ -66,9 +69,13 @@ Module.register("MMM-Birdfy", {
 
     if (!this.alert) {
       if (this.config.showWhenIdle) {
+        if (!this.invalidSources.length && this.todayVisitors.length) {
+          wrapper.appendChild(this._buildTodayVisitors());
+          return wrapper;
+        }
         wrapper.innerHTML = `<div class="birdfy-idle">
           <span class="birdfy-icon">🪺</span>
-          <span class="birdfy-idle-text">No recent visitors</span>
+          <span class="birdfy-idle-text">No visitors yet today</span>
         </div>`;
         if (this.invalidSources.length) {
           wrapper.querySelector(".birdfy-idle-text").textContent =
@@ -116,6 +123,38 @@ Module.register("MMM-Birdfy", {
     alert.appendChild(info);
     wrapper.appendChild(alert);
     return wrapper;
+  },
+
+  // Grid of today's identified species with Birdfy's photo of each.
+  _buildTodayVisitors() {
+    const box = document.createElement("div");
+    box.className = "birdfy-today";
+
+    const title = document.createElement("div");
+    title.className = "birdfy-today-title";
+    title.textContent = `Today's visitors (${this.todayVisitors.length})`;
+    box.appendChild(title);
+
+    const grid = document.createElement("div");
+    grid.className = "birdfy-today-grid";
+    for (const v of this.todayVisitors.slice(0, this.config.maxVisitors)) {
+      const item = document.createElement("div");
+      item.className = "birdfy-visitor";
+      if (v.imageUrl) {
+        const img = document.createElement("img");
+        img.className = "birdfy-visitor-img";
+        img.src = v.imageUrl;
+        img.alt = v.name;
+        item.appendChild(img);
+      }
+      const name = document.createElement("div");
+      name.className = "birdfy-visitor-name";
+      name.textContent = v.name;
+      item.appendChild(name);
+      grid.appendChild(item);
+    }
+    box.appendChild(grid);
+    return box;
   },
 
   _buildMediaElement(url, isStream) {
@@ -168,6 +207,11 @@ Module.register("MMM-Birdfy", {
 
       case "BIRDFY_ERROR":
         Log.error(`[MMM-Birdfy] ${payload.message}`);
+        break;
+
+      case "BIRDFY_TODAY":
+        this.todayVisitors = payload.visitors || [];
+        if (!this.alert) this.updateDom(this.config.animationSpeed);
         break;
 
       case "BIRDFY_STATUS":

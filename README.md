@@ -160,7 +160,8 @@ MM.sendNotification("BIRDFY_DEMO", {
 | `displayDuration` | `30000` | How long to show an alert (ms) |
 | `showVideo` | `true` | Show video clip when available |
 | `showLiveView` | `false` | Prefer live stream over recorded clip |
-| `showWhenIdle` | `true` | Show idle message between alerts |
+| `showWhenIdle` | `true` | Between alerts, show today's identified visitors (photo grid) or "No visitors yet today" |
+| `maxVisitors` | `8` | Max species shown in the today's-visitors grid |
 | `animationSpeed` | `1000` | DOM update fade speed (ms) |
 
 ---
