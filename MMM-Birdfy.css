@@ -5,6 +5,28 @@
   min-width: 240px;
 }
 
+/* Glass card, matching the other glass-styled modules */
+.birdfy-card {
+  box-sizing: border-box;
+  width: 360px;
+  max-width: 100%;
+  padding: 14px 16px;
+  border-radius: 22px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.05));
+  box-shadow: 0 18px 50px rgba(0, 12, 48, 0.35), inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(18px) saturate(140%);
+  text-align: left;
+}
+
+.birdfy-card-title {
+  margin-bottom: 10px;
+  font-size: 0.8em;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.75);
+}
+
 /* ── Idle state ─────────────────────────────────────────────────────────── */
 
 .birdfy-idle {
@@ -93,13 +115,6 @@ video.birdfy-media {
 }
 
 /* ── Today's visitors (idle view) ─────────────────────────────── */
-.birdfy-today-title {
-  font-size: 0.8em;
-  color: #aaa;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  margin-bottom: 8px;
-}
 
 .birdfy-today-grid {
   display: grid;

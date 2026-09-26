@@ -46,16 +46,19 @@ Module.register("MMM-Birdfy", {
     return ["MMM-Birdfy.css"];
   },
 
+  // The card carries its own title; only show MagicMirror's header when one is
+  // configured explicitly (header: "..." on the module).
   getHeader() {
-    if (this.alert) return "🐦 Bird Detected!";
-    return this.config.showWhenIdle ? "Birdfy" : "";
+    return this.data.header || "";
   },
 
   // ─── DOM ─────────────────────────────────────────────────────────────────
 
   getDom() {
     const wrapper = document.createElement("div");
-    wrapper.className = "birdfy-wrapper";
+    // No card when there is nothing to show (idle with showWhenIdle: false).
+    const empty = !this.alert && !this.config.showWhenIdle;
+    wrapper.className = empty ? "birdfy-wrapper" : "birdfy-wrapper birdfy-card";
 
     if (!this.loaded && !this.alert) {
       if (this.config.showWhenIdle) {
@@ -87,6 +90,11 @@ Module.register("MMM-Birdfy", {
 
     // ── Active alert ──────────────────────────────────────────────────────
     const { species, deviceName, timestamp, videoUrl, imageUrl, streamUrl } = this.alert;
+
+    const alertTitle = document.createElement("div");
+    alertTitle.className = "birdfy-card-title";
+    alertTitle.textContent = "Bird detected";
+    wrapper.appendChild(alertTitle);
 
     const alert = document.createElement("div");
     alert.className = "birdfy-alert";
@@ -131,7 +139,7 @@ Module.register("MMM-Birdfy", {
     box.className = "birdfy-today";
 
     const title = document.createElement("div");
-    title.className = "birdfy-today-title";
+    title.className = "birdfy-card-title";
     title.textContent = `Today's visitors (${this.todayVisitors.length})`;
     box.appendChild(title);
 
