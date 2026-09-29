@@ -12,9 +12,15 @@
   max-width: 100%;
   padding: 14px 16px;
   border-radius: 22px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  background: linear-gradient(145deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.05));
-  box-shadow: 0 18px 50px rgba(0, 12, 48, 0.35), inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+  border: 1px solid rgb(255 255 255 / 18%);
+  background: linear-gradient(
+    145deg,
+    rgb(255 255 255 / 16%),
+    rgb(255 255 255 / 5%)
+  );
+  box-shadow:
+    0 18px 50px rgb(0 12 48 / 35%),
+    inset 0 0 0 1px rgb(255 255 255 / 8%);
   backdrop-filter: blur(18px) saturate(140%);
   text-align: left;
 }
@@ -24,7 +30,7 @@
   font-size: 0.8em;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.75);
+  color: rgb(255 255 255 / 75%);
 }
 
 /* ── Idle state ─────────────────────────────────────────────────────────── */
@@ -47,21 +53,61 @@
   color: #aaa;
 }
 
+.birdfy-idle-error {
+  /* Full opacity: this is the "nothing configured" error state, and
+     .birdfy-idle's default 0.6 opacity fades the amber warning text below
+     an acceptable contrast ratio (custom.css supplies the amber colour). */
+  opacity: 1;
+}
+
+.birdfy-idle-error .birdfy-idle-text {
+  color: #e8a33d;
+}
+
+.birdfy-error {
+  margin-top: 8px;
+  padding: 6px 4px 0;
+  font-size: 0.78em;
+  color: #e8a33d;
+}
+
 /* ── Active alert ───────────────────────────────────────────────────────── */
 
 .birdfy-alert {
   position: relative;
   border-radius: 8px;
   overflow: hidden;
-  background: #111;
-  box-shadow: 0 0 20px rgba(0, 180, 80, 0.35);
-  animation: birdfy-pulse-border 2s ease-in-out infinite;
+  background: var(--mm-tile-strong, #111);
+  box-shadow: 0 0 20px rgb(0 180 80 / 35%);
+  animation: birdfy-pulse-border 2s ease-in-out 3;
 }
 
 @keyframes birdfy-pulse-border {
-  0%   { box-shadow: 0 0 16px rgba(0, 180, 80, 0.4); }
-  50%  { box-shadow: 0 0 28px rgba(0, 220, 100, 0.7); }
-  100% { box-shadow: 0 0 16px rgba(0, 180, 80, 0.4); }
+  0% {
+    box-shadow: 0 0 16px rgb(0 180 80 / 40%);
+  }
+
+  50% {
+    box-shadow: 0 0 28px rgb(0 220 100 / 70%);
+  }
+
+  100% {
+    box-shadow: 0 0 16px rgb(0 180 80 / 40%);
+  }
+}
+
+.birdfy-new {
+  flex: none;
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 10px;
+  background: rgb(0 200 100 / 85%);
+  color: #fff;
+  font-size: 0.62em;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  vertical-align: middle;
 }
 
 /* ── Media (video / image) ──────────────────────────────────────────────── */
@@ -84,22 +130,29 @@ video.birdfy-media {
 
 .birdfy-info {
   padding: 8px 12px 10px;
-  background: linear-gradient(transparent, rgba(0, 0, 0, 0.85));
+  background: var(--mm-tile, linear-gradient(transparent, rgb(0 0 0 / 85%)));
 }
 
 .birdfy-species {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   font-size: 1.15em;
   font-weight: 600;
-  color: #fff;
+  color: var(--mm-text, #fff);
   letter-spacing: 0.02em;
-  white-space: nowrap;
+}
+
+.birdfy-species-name {
+  min-width: 0;
   overflow: hidden;
+  white-space: nowrap;
   text-overflow: ellipsis;
 }
 
 .birdfy-meta {
   font-size: 0.78em;
-  color: #aaa;
+  color: var(--mm-text-2, #aaa);
   margin-top: 3px;
   white-space: nowrap;
   overflow: hidden;
@@ -109,7 +162,7 @@ video.birdfy-media {
 /* ── No-media state (info only) ─────────────────────────────────────────── */
 
 .birdfy-alert .birdfy-info:first-child {
-  background: rgba(0, 0, 0, 0.6);
+  background: var(--mm-tile-strong, rgb(0 0 0 / 60%));
   border-radius: 8px;
   padding: 12px 16px;
 }
