@@ -1,10 +1,8 @@
 "use strict";
 
-// Registers the "node_helper" / "logger" aliases from the MagicMirror root
-// package.json (js/node_helper.js, js/logger.js), the same way js/app.js
-// does at runtime, so this file can `require("../node_helper.js")` in
-// isolation.
-require("module-alias/register");
+// MagicMirror core aliases "node_helper" / "logger" at runtime; stub them so
+// this file can `require("../node_helper.js")` in isolation.
+require("./support/mm-stubs");
 
 const { test } = require("node:test");
 const assert = require("node:assert/strict");

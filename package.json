@@ -5,12 +5,13 @@
   "main": "MMM-Birdfy.js",
   "scripts": {
     "install": "echo \"MMM-Birdfy installed. Run 'npm install' from this directory to install dependencies.\"",
-    "test": "node --test test/*.test.js"
+    "test": "node --test --test-timeout=30000 test/*.test.js"
   },
   "keywords": ["MagicMirror", "Birdfy", "Netvue", "birds", "camera"],
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "express": "^5.1.0"
+    "express": "^5.1.0",
+    "ws": "^8.22.0"
   }
 }
