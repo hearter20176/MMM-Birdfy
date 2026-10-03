@@ -2,6 +2,14 @@
 
 A [MagicMirror²](https://magicmirror.builders) module that displays bird-detection alerts from your **Birdfy** smart feeder camera — showing the recorded video clip, a thumbnail, or a live stream whenever a bird is spotted.
 
+<p align="center">
+  <img src="docs/screenshot.png" width="540" alt="Bird alert card showing a Northern Cardinal"/>
+</p>
+
+*An alert card in the night theme: the detected species, its visits today and total visits today
+(rendered with the built-in `BIRDFY_DEMO` notification; photo: "Male Northern Cardinal", public
+domain, via Wikimedia Commons).*
+
 ---
 
 ## Features
