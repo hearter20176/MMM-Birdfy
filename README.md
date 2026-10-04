@@ -37,6 +37,16 @@ npm install
 
 ---
 
+## Update
+
+```bash
+cd ~/MagicMirror/modules/MMM-Birdfy
+git pull
+npm install --omit=dev
+```
+
+Then restart MagicMirror (for example `pm2 restart MagicMirror`).
+
 ## Configuration
 
 Add to the `modules` array in `config/config.js`:
