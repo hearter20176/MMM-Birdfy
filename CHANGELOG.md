@@ -14,6 +14,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - ESLint (flat config) with an `npm run lint` script.
 - Added CHANGELOG, CODE_OF_CONDUCT and a Dependabot configuration.
 
+### Changed
+
+- ESLint 10, with `defineConfig` in `eslint.config.mjs`; `npm run lint` runs `eslint` without the trailing `.`.
+- README: real clone URL and no `modules: [` snippet.
+- Birdfy request errors keep the underlying error as `cause`.
+
 ## [1.0.0]
 
 Released before this changelog was started. Commit history, newest first:

@@ -82,8 +82,8 @@ async function getJson (url, params) {
 	try {
 		res = await fetch(`${url}?${query}`, { signal: controller.signal });
 	} catch (err) {
-		if (err.name === "AbortError") throw new Error("Birdfy request timed out");
-		throw new Error(`Birdfy request failed: ${err.message}`);
+		if (err.name === "AbortError") throw new Error("Birdfy request timed out", { cause: err });
+		throw new Error(`Birdfy request failed: ${err.message}`, { cause: err });
 	} finally {
 		clearTimeout(timer);
 	}

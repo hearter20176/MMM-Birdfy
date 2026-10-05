@@ -30,7 +30,7 @@ domain, via Wikimedia Commons).*
 
 ```bash
 cd ~/MagicMirror/modules
-git clone <this repository's clone URL> MMM-Birdfy
+git clone https://github.com/hearter20176/MMM-Birdfy
 cd MMM-Birdfy
 npm install
 ```
@@ -128,7 +128,7 @@ Full example for three feeders. On this mirror Birdfy has its own MMM-pages page
 {
   module: "MMM-Birdfy",
   position: "middle_center",   // its own page, below the fixed clock
-  classes: "page4",            // MMM-pages: modules: [..., ["page4"]]
+  classes: "page4",            // MMM-pages: list "page4" in its pages config
   config: {
     source: "homeassistant",
     haUrl: "https://ha.example.com:8123",
