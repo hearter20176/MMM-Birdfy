@@ -665,8 +665,13 @@ module.exports = NodeHelper.create({
 		// default Express handler, which would write an HTML stack trace,
 		// including absolute file paths, to both the response and stderr).
 		// Express only recognises this as error-handling middleware because it
-		// declares all 4 parameters, even though `next` is unused here.
+		// declares all 4 parameters. If a response has already started, Express
+		// requires handing the error on so it can close the connection.
 		this.webhookApp.use((err, req, res, next) => {
+			if (res.headersSent) {
+				next(err);
+				return;
+			}
 			Log.error(`[MMM-Birdfy] Webhook JSON parse error: ${err.message}`);
 			if (err.type === "entity.too.large") {
 				res.status(413).json({ error: "payload too large" });

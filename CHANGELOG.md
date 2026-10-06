@@ -19,6 +19,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - ESLint 10, with `defineConfig` in `eslint.config.mjs`; `npm run lint` runs `eslint` without the trailing `.`.
 - README: real clone URL and no `modules: [` snippet.
 - Birdfy request errors keep the underlying error as `cause`.
+- Updated `express` to 5.2.
+- `package.json`: lowercase package name, `"type": "commonjs"` and an author.
+- The webhook error handler passes errors on to Express when a response has already started, and has tests for malformed and oversized JSON.
+- ESLint reports unused catch bindings and arguments, and lints `package.json`, as modules.magicmirror.builders does.
 
 ## [1.0.0]
 

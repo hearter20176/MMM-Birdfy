@@ -1,5 +1,5 @@
 {
-  "name": "MMM-Birdfy",
+  "name": "mmm-birdfy",
   "version": "1.0.0",
   "description": "MagicMirror² module that displays bird detection alerts from Birdfy smart feeders, showing video clips or live view.",
   "repository": {
@@ -10,7 +10,8 @@
   "bugs": {
     "url": "https://github.com/hearter20176/MMM-Birdfy/issues"
   },
-  "author": "",
+  "author": "hearter20176",
+  "type": "commonjs",
   "main": "MMM-Birdfy.js",
   "scripts": {
     "install": "echo \"MMM-Birdfy installed. Run 'npm install' from this directory to install dependencies.\"",
@@ -26,12 +27,13 @@
   ],
   "license": "MIT",
   "dependencies": {
-    "express": "^5.1.0",
+    "express": "^5.2.1",
     "ws": "^8.22.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "eslint": "^10.12.0",
+    "eslint-plugin-package-json": "^1.10.1",
     "globals": "^17.13.0"
   }
 }

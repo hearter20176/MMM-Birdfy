@@ -230,6 +230,36 @@ test("webhook does not log the raw request body", async () => {
 	assert.match(allLogged, /bytes/);
 });
 
+test("webhook answers malformed and oversized JSON with a short JSON error, not a stack trace", async () => {
+	const { helper } = makeHelper();
+	helper.config = { webhookPath: "/birdfy", webhookPort: 0 };
+	helper._startWebhookServer();
+	await once(helper.webhookServer, "listening");
+	const port = helper.webhookServer.address().port;
+
+	const originalError = Log.error;
+	Log.error = () => {};
+	const post = (body) => fetch(`http://127.0.0.1:${port}/birdfy`, {
+		method: "POST",
+		headers: { "content-type": "application/json" },
+		body
+	});
+
+	try {
+		const malformed = await post("{not json");
+		assert.equal(malformed.status, 400);
+		assert.deepEqual(await malformed.json(), { error: "invalid JSON" });
+
+		// express.json() rejects bodies over its default 100 KB limit
+		const oversized = await post(JSON.stringify({ species: "x".repeat(150 * 1024) }));
+		assert.equal(oversized.status, 413);
+		assert.deepEqual(await oversized.json(), { error: "payload too large" });
+	} finally {
+		Log.error = originalError;
+		helper.webhookServer.close();
+	}
+});
+
 test("a webhook bind failure (EADDRINUSE) is surfaced as BIRDFY_ERROR, not an uncaught exception", async () => {
 	const first = makeHelper();
 	first.helper.config = { webhookPath: "/birdfy", webhookPort: 0 };
